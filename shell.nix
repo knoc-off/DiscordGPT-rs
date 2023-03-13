@@ -33,8 +33,9 @@ pkgs.mkShell {
     cargo-edit
     cargo-watch
     mold
-    #lld
+    lld
     clang
+    fuse
 
     # # bevy-specific deps (from https://github.com/bevyengine/bevy/blob/main/docs/linux_dependencies.md)
     pkgconfig
