@@ -27,7 +27,7 @@ pub fn spawn_player(
         (
             SpriteBundle {
                 transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
-                texture: asset_server.load("sprites/Tiles/tile_000000.png"),
+                texture: asset_server.load("sprites/Tiles/tile_0000.png"),
                 ..default()
             },
             Player{},
