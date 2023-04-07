@@ -3,7 +3,8 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-22.11";
 
     fenixrs = {
-      url = "github:nix-community/fenix";
+      #url = "github:nix-community/fenix";
+      url = "github:nix-community/fenix/monthly";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     devenv.url = "github:cachix/devenv";
@@ -23,9 +24,7 @@
             enterShell = ''
               export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${
                 pkgs.lib.makeLibraryPath [
-                  pkgs.alsaLib
-                  pkgs.udev
-                  pkgs.vulkan-loader
+                  pkgs.openssl
                 ]
               }"
             '';
@@ -48,27 +47,9 @@
               clang
               fuse
 
-              #          bevy-specific deps (from https://github.com/bevyengine/bevy/blob/main/docs/linux_dependencies.md)
               pkgconfig
-              udev
-              alsaLib
-              xlibsWrapper
-              xorg.libXcursor
-              xorg.libXrandr
-              xorg.libXi
-              vulkan-tools
-              vulkan-headers
-              vulkan-loader
-              vulkan-validation-layers
+              openssl
             ];
-
-            # This is your devenv configuration
-            #            packages = [ pkgs.hello ];
-            #
-            #            enterShell = ''
-            #              hello
-            #            '';
-            #            processes.run.exec = "hello";
           })
         ];
       };
