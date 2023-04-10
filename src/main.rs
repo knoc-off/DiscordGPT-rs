@@ -8,6 +8,7 @@ use chrono::{Utc, Duration};
 
 use chatgpt::prelude::*;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -16,19 +17,26 @@ static MY_STRING: &str = "
 
 // Define a handler struct
 struct Handler {
-    conversation: Arc<Mutex<Conversation>>,
+    chat_gpt_client: ChatGPT,
+    conversations: Arc<Mutex<HashMap<u64, Conversation>>>,
+    //conversation: Arc<Mutex<Conversation>>,
 }
+
 
 impl Handler {
     async fn new_chatbot(client: ChatGPT) -> Self {
-        let conversation = client.new_conversation();
         Handler {
-            conversation: Arc::new(Mutex::new(conversation)),
+            chat_gpt_client: client,
+            conversations: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    async fn chatbot(&self, input_str: &String) -> Result<String> {
-        let mut conversation = self.conversation.lock().await;
+    async fn chatbot(&self, channel_id: u64, input_str: &String) -> Result<String> {
+        let mut conversations = self.conversations.lock().await;
+        let conversation = conversations
+            .entry(channel_id)
+            .or_insert_with(|| self.chat_gpt_client.new_conversation());
+
         let response = conversation.send_message(input_str).await?;
         Ok(response.message().content.to_string())
     }
@@ -67,19 +75,11 @@ impl EventHandler for Handler {
             // Reply to the message with a simple text
             let _ = msg
                 .channel_id
-                .say(&ctx.http, self.chatbot(&msg.content).await.unwrap())
+                .say(&ctx.http, self.chatbot(msg.channel_id.0, &msg.content).await.unwrap())
                 .await;
         }
     }
 }
-
-// async fn chatbot(input_str: &String, context: &String) -> Result<String> {
-//     let key = std::env::var("OPENAI_API_KEY").expect("Expected a token in the environment");
-//     let client = ChatGPT::new(key)?;
-//     /// Sending a message and getting the completion
-//     let response = client.send_message(context.to_owned() + input_str).await?;
-//     Ok(response.message().content.to_string())
-// }
 
 
 
@@ -88,7 +88,6 @@ async fn main() {
     // Read the bot token from an environment variable
     let token = std::env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
     let chat_gpt_key = std::env::var("OPENAI_API_KEY").expect("Expected a token in the environment");
-
     let client = ChatGPT::new(chat_gpt_key).unwrap();
 
     let handler = Handler::new_chatbot(client).await;
