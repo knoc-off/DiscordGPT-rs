@@ -9,6 +9,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use vader_sentiment::SentimentIntensityAnalyzer;
+
+static PRESETS: &[&str] = &[
+    "you are a chatbot, try to respond in as few words as possible",
+    "you are a chatbot, try to respond enthusiastically and positively in as few words as possible",
+    "you are a chatbot, try to respond with a pessimistic or negative tone in as few words as possible"
+];
+
 // Define a handler struct
 struct Handler {
     chat_gpt_client: ChatGPT,
@@ -32,18 +40,36 @@ impl Handler {
         // Get the current time
         let now = Utc::now();
 
+        // Choose a preset based on the user's message sentiment
+        let preset = get_preset_based_on_sentiment(input_str);
+
+        // Choose a preset from the static array of presets
+        // let preset = PRESETS.choose(&mut rand::thread_rng()).unwrap();
+
         // Attempt to find an existing conversation for the given channel_id
-        // If it doesn't exist, create a new conversation and store the current timestamp as the last message time
+        // If it doesn't exist, create a new conversation with the chosen preset and store the current timestamp as the last message time
         let conversation_entry = conversations.entry(channel_id).or_insert_with(|| {
-            println!("Generating a new conversation for channel {}", channel_id);
-            (self.chat_gpt_client.new_conversation(), Utc::now())
+            println!(
+                "Generating a new conversation for channel {} with preset {}",
+                channel_id, preset
+            );
+            (
+                self.chat_gpt_client.new_conversation_directed(preset),
+                Utc::now(),
+            )
         });
 
         // Check if the conversation's last message time is older than 10 minutes
-        // If it is, recreate the conversation and update the last message time to the current time
+        // If it is, recreate the conversation with the chosen preset and update the last message time to the current time
         if now.signed_duration_since(conversation_entry.1) > Duration::minutes(1) {
-            println!("Refreshing the conversation for channel {}", channel_id);
-            *conversation_entry = (self.chat_gpt_client.new_conversation(), Utc::now());
+            println!(
+                "Refreshing the conversation for channel {} with preset {}",
+                channel_id, preset
+            );
+            *conversation_entry = (
+                self.chat_gpt_client.new_conversation_directed(preset),
+                Utc::now(),
+            );
         } else {
             println!("Using an existing conversation for channel {}", channel_id);
         }
@@ -77,16 +103,23 @@ impl EventHandler for Handler {
             return;
         }
 
-        // Check if the message contains the bot's name
-        if msg
-            .content
-            .to_lowercase()
-            .contains(&bot_user.name.to_lowercase())
-        {
-            // Concatenate the messages to form the context string
-            // let mut context = MY_STRING.to_owned();
-            // println!("Context: {}", context );
+        let channel_id = msg.channel_id.0;
+        let should_respond = {
+            let conversations = self.conversations.lock().await;
+            if let Some((_, last_message)) = conversations.get(&channel_id) {
+                msg.content
+                    .to_lowercase()
+                    .contains(&bot_user.name.to_lowercase())
+                    || Utc::now().signed_duration_since(*last_message) <= Duration::minutes(1)
+            } else {
+                msg.content
+                    .to_lowercase()
+                    .contains(&bot_user.name.to_lowercase())
+            }
+        };
 
+        // Check if the message contains the bot's name or was sent within 1 minute of the last conversation message in the channel
+        if should_respond {
             // Reply to the message with a simple text
             let _ = msg
                 .channel_id
@@ -96,6 +129,29 @@ impl EventHandler for Handler {
                 )
                 .await;
         }
+    }
+}
+
+fn get_preset_based_on_sentiment(message: &str) -> &str {
+    let analyzer = SentimentIntensityAnalyzer::new();
+    let sentiment = analyzer.polarity_scores(message);
+
+    if let Some(compound) = sentiment.get("compound") {
+        println!("Compound sentiment score: {}", compound);
+
+        if *compound > 0.5 {
+            println!("Selected preset: positive");
+            "you are a chatbot, try to respond enthusiastically and positively in as few words as possible"
+        } else if *compound < -0.5 {
+            println!("Selected preset: negative");
+            "you are a chatbot, try to respond with a pessimistic or negative tone in as few words as possible"
+        } else {
+            println!("Selected preset: neutral");
+            "you are a chatbot, try to respond in as few words as possible"
+        }
+    } else {
+        println!("Compound sentiment score not found, using neutral preset");
+        "you are a chatbot, try to respond in as few words as possible"
     }
 }
 
