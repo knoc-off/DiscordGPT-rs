@@ -1,8 +1,3 @@
-
-
-
-
-
 use serenity::{
     async_trait,
     model::{channel::Message, gateway::Ready},
@@ -13,23 +8,32 @@ use chrono::{Utc, Duration};
 
 use chatgpt::prelude::*;
 
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
 static MY_STRING: &str = "
 ";
 
 // Define a handler struct
-struct Handler;
-
-
-
-
-
-async fn chatbot(input_str: &String, context: &String) -> Result<String> {
-    let key = std::env::var("OPENAI_API_KEY").expect("Expected a token in the environment");
-    let client = ChatGPT::new(key)?;
-    /// Sending a message and getting the completion
-    let response = client.send_message(context.to_owned() + input_str).await?;
-    Ok(response.message().content.to_string())
+struct Handler {
+    conversation: Arc<Mutex<Conversation>>,
 }
+
+impl Handler {
+    async fn new_chatbot(client: ChatGPT) -> Self {
+        let conversation = client.new_conversation();
+        Handler {
+            conversation: Arc::new(Mutex::new(conversation)),
+        }
+    }
+
+    async fn chatbot(&self, input_str: &String) -> Result<String> {
+        let mut conversation = self.conversation.lock().await;
+        let response = conversation.send_message(input_str).await?;
+        Ok(response.message().content.to_string())
+    }
+}
+
 
 // Implement EventHandler trait for the Handler struct
 #[async_trait]
@@ -46,7 +50,6 @@ impl EventHandler for Handler {
         println!("Recived A Message: {}", msg.content);
 
         if msg.author.id == bot_user.id {
-            // Do not process the message if the author is the bot
             return;
         }
 
@@ -56,50 +59,43 @@ impl EventHandler for Handler {
             .to_lowercase()
             .contains(&bot_user.name.to_lowercase())
         {
-            let mut message_history = msg
-                .channel_id
-                .messages(&ctx.http, |builder| builder.before(msg.id).limit(5))
-                .await
-                .unwrap();
-
-            // Reverse the order of the messages to maintain chronological order
-            message_history.reverse();
-
-            // Get the current time and set the time limit to 1 hour ago
-            let now = Utc::now();
-            let time_limit = now - Duration::hours(1);
-
-            // Filter the messages based on the time limit and take at most 5 messages
-            let messages: Vec<_> = message_history
-                .into_iter()
-                .filter(|message| message.timestamp > time_limit)
-                .take(5)
-                .collect();
 
             // Concatenate the messages to form the context string
-            let mut context = MY_STRING.to_owned();
-            for message in &messages {
-                context.push_str(&format!("- {}: {}\n", message.author.name, message.content));
-            }
-            println!("Context: {}", context );
+            // let mut context = MY_STRING.to_owned();
+            // println!("Context: {}", context );
 
             // Reply to the message with a simple text
             let _ = msg
                 .channel_id
-                .say(&ctx.http, chatbot(&msg.content, &context).await.unwrap())
+                .say(&ctx.http, self.chatbot(&msg.content).await.unwrap())
                 .await;
         }
     }
 }
 
+// async fn chatbot(input_str: &String, context: &String) -> Result<String> {
+//     let key = std::env::var("OPENAI_API_KEY").expect("Expected a token in the environment");
+//     let client = ChatGPT::new(key)?;
+//     /// Sending a message and getting the completion
+//     let response = client.send_message(context.to_owned() + input_str).await?;
+//     Ok(response.message().content.to_string())
+// }
+
+
+
 #[tokio::main]
 async fn main() {
     // Read the bot token from an environment variable
     let token = std::env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+    let chat_gpt_key = std::env::var("OPENAI_API_KEY").expect("Expected a token in the environment");
+
+    let client = ChatGPT::new(chat_gpt_key).unwrap();
+
+    let handler = Handler::new_chatbot(client).await;
 
     // Create a client using the bot token and the Handler struct
     let mut client = Client::builder(token)
-        .event_handler(Handler)
+        .event_handler(handler)
         .await
         .expect("Error creating client");
 
