@@ -12,8 +12,8 @@ A Discord bot powered by OpenAI's GPT-4 based ChatGPT that allows users to have 
 ## Setup and Run
 
 1. Install Rust: https://www.rust-lang.org/tools/install
-2. Clone this repository: git clone https://github.com/yourusername/ChatGPT-Discord-Bot.git
-3. Change to the project directory: cd ChatGPT-Discord-Bot
+2. Clone this repository: git clone https://github.com/Knoc-Off/DiscordGPT-rs.git
+3. Change to the project directory: cd DiscordGPT-rs
 4. Set up the following environment variables:
   - DISCORD_TOKEN: Your Discord bot token
   - OPENAI_API_KEY: Your OpenAI API key
