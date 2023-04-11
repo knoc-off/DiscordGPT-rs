@@ -5,9 +5,11 @@ A Discord bot powered by OpenAI's GPT-4 based ChatGPT that allows users to have 
 
 - Context-aware conversations
 - Sentiment-based response presets
-- Persistent conversations per channel
+- semi-Persistent conversations per channel
 - Time-based conversation reset
 - Quick response to recent messages
+- Rate-limiting
+- queue-based system
 
 ## Setup and Run
 

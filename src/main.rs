@@ -38,28 +38,6 @@ impl Handler {
         }
     }
 
-    //    async fn queue_handler(&self, ctx: Context) {
-    //        loop {
-    //
-    //            if let Some(queued_message) = queued_message {
-    //                let response = self
-    //                    .chatbot(
-    //                        queued_message.channel_id,
-    //                        &(queued_message.author_name + ": " + &queued_message.content),
-    //                    )
-    //                    .await
-    //                    .unwrap();
-    //                println!("Response: {}", response);
-    //                let _ = ChannelId(queued_message.channel_id)
-    //                    .say(&ctx.http, response)
-    //                    .await;
-    //
-    //                // let _ = msg.channel_id.say(&ctx.http, response).await;
-    //            }
-    //
-    //            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-    //        }
-    //    }
     async fn queue_handler(self: Arc<Self>, ctx: Context) {
         loop {
             let queued_message = {
@@ -77,13 +55,11 @@ impl Handler {
                     .await
                     .unwrap();
                 println!("Response: {}", response);
-                //let _ = msg.channel_id.say(&ctx.http, response).await;
 
                 let _ = ChannelId(queued_message.channel_id)
                     .say(&ctx.http, response)
                     .await;
 
-                // let _ = msg.channel_id.say(&ctx.http, response).await;
             }
 
             tokio::time::sleep(std::time::Duration::from_secs(30)).await;
