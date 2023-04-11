@@ -40,15 +40,13 @@ impl Handler {
         // Get the current time
         let now = Utc::now();
 
-        // Choose a preset based on the user's message sentiment
-        let preset = get_preset_based_on_sentiment(input_str);
-
         // Choose a preset from the static array of presets
         // let preset = PRESETS.choose(&mut rand::thread_rng()).unwrap();
 
         // Attempt to find an existing conversation for the given channel_id
         // If it doesn't exist, create a new conversation with the chosen preset and store the current timestamp as the last message time
         let conversation_entry = conversations.entry(channel_id).or_insert_with(|| {
+            let preset = get_preset_based_on_sentiment(input_str);
             println!(
                 "Generating a new conversation for channel {} with preset {}",
                 channel_id, preset
@@ -62,6 +60,7 @@ impl Handler {
         // Check if the conversation's last message time is older than 10 minutes
         // If it is, recreate the conversation with the chosen preset and update the last message time to the current time
         if now.signed_duration_since(conversation_entry.1) > Duration::minutes(1) {
+            let preset = get_preset_based_on_sentiment(input_str);
             println!(
                 "Refreshing the conversation for channel {} with preset {}",
                 channel_id, preset
@@ -70,9 +69,10 @@ impl Handler {
                 self.chat_gpt_client.new_conversation_directed(preset),
                 Utc::now(),
             );
-        } else {
-            println!("Using an existing conversation for channel {}", channel_id);
         }
+        //else {
+        //    println!("Using an existing conversation for channel {}", channel_id);
+        //}
 
         // Send the user's message to the conversation and receive a response
         let response = conversation_entry.0.send_message(input_str).await?;
@@ -97,7 +97,7 @@ impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         let bot_user = ctx.http.get_current_user().await.unwrap();
 
-        println!("Recived A Message: {}", msg.content);
+        println!("\nRecived A Message: {}", msg.content);
 
         if msg.author.id == bot_user.id {
             return;
@@ -110,7 +110,7 @@ impl EventHandler for Handler {
                 msg.content
                     .to_lowercase()
                     .contains(&bot_user.name.to_lowercase())
-                    || Utc::now().signed_duration_since(*last_message) <= Duration::minutes(1)
+                    || Utc::now().signed_duration_since(*last_message) <= Duration::minutes(30)
             } else {
                 msg.content
                     .to_lowercase()
@@ -147,7 +147,7 @@ fn get_preset_based_on_sentiment(message: &str) -> &str {
             "you are a chatbot, try to respond with a pessimistic or negative tone in as few words as possible"
         } else {
             println!("Selected preset: neutral");
-            "you are a chatbot, try to respond in as few words as possible"
+            "you are a chatbot, try to respond with a neutral tone in as few words as possible"
         }
     } else {
         println!("Compound sentiment score not found, using neutral preset");
