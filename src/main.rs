@@ -62,7 +62,7 @@ impl Handler {
                     .await;
             }
 
-            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         }
     }
 
@@ -92,7 +92,7 @@ impl Handler {
 
         // Check if the conversation's last message time is older than 10 minutes
         // If it is, recreate the conversation with the chosen preset and update the last message time to the current time
-        if now.signed_duration_since(conversation_entry.1) > Duration::seconds(30) {
+        if now.signed_duration_since(conversation_entry.1) > Duration::minutes(30) {
             let preset = get_preset_based_on_sentiment(input_str);
             println!(
                 "Refreshing the conversation for channel {} with preset {}",
@@ -158,7 +158,7 @@ impl EventHandler for Handler {
                 msg.content
                     .to_lowercase()
                     .contains(&bot_user.name.to_lowercase())
-                    || Utc::now().signed_duration_since(*last_message) <= Duration::minutes(30)
+                    || Utc::now().signed_duration_since(*last_message) <= Duration::seconds(30)
                     || random_chance == 1
             } else {
                 msg.content
