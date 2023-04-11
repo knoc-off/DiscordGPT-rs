@@ -1,5 +1,6 @@
 use chatgpt::prelude::*;
 use chrono::{Duration, Utc};
+use serenity::model::prelude::ChannelId;
 use serenity::{
     async_trait,
     model::{channel::Message, gateway::Ready},
@@ -9,19 +10,83 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use tokio::sync::mpsc;
+
 use vader_sentiment::SentimentIntensityAnalyzer;
 
-// Define a handler struct
+struct QueuedMessage {
+    channel_id: u64,
+    author_name: String,
+    content: String,
+}
+
 struct Handler {
     chat_gpt_client: ChatGPT,
     conversations: Arc<Mutex<HashMap<u64, (Conversation, chrono::DateTime<Utc>)>>>,
+    sender: mpsc::Sender<QueuedMessage>,
+    receiver: Arc<Mutex<mpsc::Receiver<QueuedMessage>>>,
 }
 
 impl Handler {
     async fn new_chatbot(client: ChatGPT) -> Self {
+        let (sender, receiver) = mpsc::channel(100);
         Handler {
             chat_gpt_client: client,
             conversations: Arc::new(Mutex::new(HashMap::new())),
+            sender,
+            receiver: Arc::new(Mutex::new(receiver)),
+        }
+    }
+
+    //    async fn queue_handler(&self, ctx: Context) {
+    //        loop {
+    //
+    //            if let Some(queued_message) = queued_message {
+    //                let response = self
+    //                    .chatbot(
+    //                        queued_message.channel_id,
+    //                        &(queued_message.author_name + ": " + &queued_message.content),
+    //                    )
+    //                    .await
+    //                    .unwrap();
+    //                println!("Response: {}", response);
+    //                let _ = ChannelId(queued_message.channel_id)
+    //                    .say(&ctx.http, response)
+    //                    .await;
+    //
+    //                // let _ = msg.channel_id.say(&ctx.http, response).await;
+    //            }
+    //
+    //            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    //        }
+    //    }
+    async fn queue_handler(self: Arc<Self>, ctx: Context) {
+        loop {
+            let queued_message = {
+                let mut receiver = self.receiver.lock().await;
+                receiver.recv().await
+            };
+
+            if let Some(queued_message) = queued_message {
+                //let msg = &queued_message.message;
+                let response = self
+                    .chatbot(
+                        queued_message.channel_id,
+                        &(queued_message.author_name + ": " + &queued_message.content),
+                    )
+                    .await
+                    .unwrap();
+                println!("Response: {}", response);
+                //let _ = msg.channel_id.say(&ctx.http, response).await;
+
+                let _ = ChannelId(queued_message.channel_id)
+                    .say(&ctx.http, response)
+                    .await;
+
+                // let _ = msg.channel_id.say(&ctx.http, response).await;
+            }
+
+            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
         }
     }
 
@@ -77,12 +142,27 @@ impl Handler {
     }
 }
 
+impl Clone for Handler {
+    fn clone(&self) -> Self {
+        Self {
+            chat_gpt_client: self.chat_gpt_client.clone(),
+            conversations: self.conversations.clone(),
+            sender: self.sender.clone(),
+            receiver: self.receiver.clone(),
+        }
+    }
+}
+
 // Implement EventHandler trait for the Handler struct
 #[async_trait]
 impl EventHandler for Handler {
-    // This function will be called when the bot is ready to start
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
+        let handler_clone = Arc::new(self.clone());
+        let ctx_clone = ctx.clone();
+        tokio::spawn(async move {
+            handler_clone.queue_handler(ctx_clone).await;
+        });
     }
 
     // This function will be called when a message is received
@@ -112,16 +192,26 @@ impl EventHandler for Handler {
 
         // Check if the message contains the bot's name or was sent within 1 minute of the last conversation message in the channel
         if should_respond {
-            let response = self
-                .chatbot(
-                    msg.channel_id.0,
-                    &(msg.author.name.to_owned() + ": " + &msg.content),
-                )
-                .await
-                .unwrap();
-            println!("Response: {}", response);
-            // Reply to the message with a simple text
-            let _ = msg.channel_id.say(&ctx.http, response).await;
+            let queued_message = QueuedMessage {
+                channel_id: msg.channel_id.0,
+                author_name: msg.author.name.clone(),
+                content: msg.content.clone(),
+            };
+
+            if let Err(e) = self.sender.send(queued_message).await {
+                eprintln!("Failed to send message to the queue: {}", e);
+            }
+
+            // let response = self
+            //                 .chatbot(
+            //                     msg.channel_id.0,
+            //                     &(msg.author.name.to_owned() + ": " + &msg.content),
+            //                 )
+            //                 .await
+            //                 .unwrap();
+            //             println!("Response: {}", response);
+            //             // Reply to the message with a simple text
+            //             let _ = msg.channel_id.say(&ctx.http, response).await;
         }
     }
 }
@@ -148,16 +238,20 @@ fn get_preset_based_on_sentiment(message: &str) -> String {
         ),
     ];
 
-    let closest_index = presets.iter().enumerate().fold(0, |acc, (index, &(sentiment, _prompt))| {
-        let distance = (sentiment_score - sentiment).abs();
-        let closest_distance = (sentiment_score - presets[acc].0).abs();
+    let closest_index =
+        presets
+            .iter()
+            .enumerate()
+            .fold(0, |acc, (index, &(sentiment, _prompt))| {
+                let distance = (sentiment_score - sentiment).abs();
+                let closest_distance = (sentiment_score - presets[acc].0).abs();
 
-        if distance < closest_distance {
-            index
-        } else {
-            acc
-        }
-    });
+                if distance < closest_distance {
+                    index
+                } else {
+                    acc
+                }
+            });
 
     let final_preset = format!(
         "The expected format is as follows:\n<name>: <message>\nyou should only ever respond with <message>\n{}",
@@ -166,7 +260,6 @@ fn get_preset_based_on_sentiment(message: &str) -> String {
 
     final_preset
 }
-
 
 #[tokio::main]
 async fn main() {
