@@ -1,5 +1,6 @@
 use chatgpt::prelude::*;
 use chrono::{Duration, Utc};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use serenity::model::prelude::ChannelId;
 use serenity::{
     async_trait,
@@ -59,7 +60,6 @@ impl Handler {
                 let _ = ChannelId(queued_message.channel_id)
                     .say(&ctx.http, response)
                     .await;
-
             }
 
             tokio::time::sleep(std::time::Duration::from_secs(30)).await;
@@ -92,7 +92,7 @@ impl Handler {
 
         // Check if the conversation's last message time is older than 10 minutes
         // If it is, recreate the conversation with the chosen preset and update the last message time to the current time
-        if now.signed_duration_since(conversation_entry.1) > Duration::minutes(2) {
+        if now.signed_duration_since(conversation_entry.1) > Duration::seconds(30) {
             let preset = get_preset_based_on_sentiment(input_str);
             println!(
                 "Refreshing the conversation for channel {} with preset {}",
@@ -103,9 +103,6 @@ impl Handler {
                 Utc::now(),
             );
         }
-        //else {
-        //    println!("Using an existing conversation for channel {}", channel_id);
-        //}
 
         // Send the user's message to the conversation and receive a response
         let response = conversation_entry.0.send_message(input_str).await?;
@@ -151,6 +148,9 @@ impl EventHandler for Handler {
 
         println!("\nRecived A Message: {}", msg.content);
 
+        let mut rng = StdRng::from_entropy();
+        let random_chance = rng.gen_range(1..=20);
+
         let channel_id = msg.channel_id.0;
         let should_respond = {
             let conversations = self.conversations.lock().await;
@@ -159,10 +159,12 @@ impl EventHandler for Handler {
                     .to_lowercase()
                     .contains(&bot_user.name.to_lowercase())
                     || Utc::now().signed_duration_since(*last_message) <= Duration::minutes(30)
+                    || random_chance == 1
             } else {
                 msg.content
                     .to_lowercase()
                     .contains(&bot_user.name.to_lowercase())
+                    || random_chance == 1
             }
         };
 
@@ -177,17 +179,6 @@ impl EventHandler for Handler {
             if let Err(e) = self.sender.send(queued_message).await {
                 eprintln!("Failed to send message to the queue: {}", e);
             }
-
-            // let response = self
-            //                 .chatbot(
-            //                     msg.channel_id.0,
-            //                     &(msg.author.name.to_owned() + ": " + &msg.content),
-            //                 )
-            //                 .await
-            //                 .unwrap();
-            //             println!("Response: {}", response);
-            //             // Reply to the message with a simple text
-            //             let _ = msg.channel_id.say(&ctx.http, response).await;
         }
     }
 }

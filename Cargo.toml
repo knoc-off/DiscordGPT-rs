@@ -12,6 +12,7 @@ opt-level = 3
 [dependencies]
 chatgpt_rs = "1.1.1"
 chrono = "0.4.24"
+rand = "0.8.5"
 serenity = { version = "0.10.9", default-features = false, features = ["client", "gateway", "rustls_backend", "model"] }
 tokio = { version = "1", features = ["full"] }
 vader_sentiment = "0.1.1"
