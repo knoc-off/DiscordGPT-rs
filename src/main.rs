@@ -11,18 +11,10 @@ use tokio::sync::Mutex;
 
 use vader_sentiment::SentimentIntensityAnalyzer;
 
-static PRESETS: &[&str] = &[
-    "you are a chatbot, try to respond in as few words as possible",
-    "you are a chatbot, try to respond enthusiastically and positively in as few words as possible",
-    "you are a chatbot, try to respond with a pessimistic or negative tone in as few words as possible"
-];
-
 // Define a handler struct
 struct Handler {
     chat_gpt_client: ChatGPT,
     conversations: Arc<Mutex<HashMap<u64, (Conversation, chrono::DateTime<Utc>)>>>,
-    // conversations: Arc<Mutex<HashMap<u64, Conversation>>>,
-    // conversation: Arc<Mutex<Conversation>>,
 }
 
 impl Handler {
@@ -134,7 +126,7 @@ impl EventHandler for Handler {
     }
 }
 
-fn get_preset_based_on_sentiment(message: &str) -> &str {
+fn get_preset_based_on_sentiment(message: &str) -> String {
     let analyzer = SentimentIntensityAnalyzer::new();
     let sentiment = analyzer.polarity_scores(message);
 
@@ -143,16 +135,16 @@ fn get_preset_based_on_sentiment(message: &str) -> &str {
 
     let presets = [
         (
-            1.0, // this is the sentiment score, this is tied to the message
-            "you are a chatbot, be very positive and try to respond in as few words as possible",
+            0.75, // this is the sentiment score, this is tied to the message
+            "you are a chatbot, be very positive, happy and try to respond in as few words as possible",
         ),
         (
             0.0,
-            "you are a chatbot, be neutral and try to respond in as few words as possible",
+            "you are a chatbot, be neutral, apethetic and try to respond in as few words as possible",
         ),
         (
-            -1.0,
-            "you are a chatbot, be very negative and try to respond in as few words as possible",
+            -0.75,
+            "you are a chatbot, be very negative, angry and try to respond in as few words as possible",
         ),
     ];
 
@@ -167,7 +159,12 @@ fn get_preset_based_on_sentiment(message: &str) -> &str {
         }
     });
 
-    presets[closest_index].1
+    let final_preset = format!(
+        "The expected format is as follows:\n<name>: <message>\nyou should only ever respond with <message>\n{}",
+        presets[closest_index].1
+    );
+
+    final_preset
 }
 
 
