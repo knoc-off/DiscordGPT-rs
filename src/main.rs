@@ -59,7 +59,7 @@ impl Handler {
 
         // Check if the conversation's last message time is older than 10 minutes
         // If it is, recreate the conversation with the chosen preset and update the last message time to the current time
-        if now.signed_duration_since(conversation_entry.1) > Duration::minutes(1) {
+        if now.signed_duration_since(conversation_entry.1) > Duration::minutes(2) {
             let preset = get_preset_based_on_sentiment(input_str);
             println!(
                 "Refreshing the conversation for channel {} with preset {}",
@@ -97,11 +97,11 @@ impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         let bot_user = ctx.http.get_current_user().await.unwrap();
 
-        println!("\nRecived A Message: {}", msg.content);
-
         if msg.author.id == bot_user.id {
             return;
         }
+
+        println!("\nRecived A Message: {}", msg.content);
 
         let channel_id = msg.channel_id.0;
         let should_respond = {
@@ -120,14 +120,16 @@ impl EventHandler for Handler {
 
         // Check if the message contains the bot's name or was sent within 1 minute of the last conversation message in the channel
         if should_respond {
-            // Reply to the message with a simple text
-            let _ = msg
-                .channel_id
-                .say(
-                    &ctx.http,
-                    self.chatbot(msg.channel_id.0, &msg.content).await.unwrap(),
+            let response = self
+                .chatbot(
+                    msg.channel_id.0,
+                    &(msg.author.name.to_owned() + ": " + &msg.content),
                 )
-                .await;
+                .await
+                .unwrap();
+            println!("Response: {}", response);
+            // Reply to the message with a simple text
+            let _ = msg.channel_id.say(&ctx.http, response).await;
         }
     }
 }
@@ -136,24 +138,38 @@ fn get_preset_based_on_sentiment(message: &str) -> &str {
     let analyzer = SentimentIntensityAnalyzer::new();
     let sentiment = analyzer.polarity_scores(message);
 
-    if let Some(compound) = sentiment.get("compound") {
-        println!("Compound sentiment score: {}", compound);
+    let sentiment_score = sentiment.get("compound").unwrap_or(&0.0);
+    println!("Sentiment score: {}", sentiment_score);
 
-        if *compound > 0.5 {
-            println!("Selected preset: positive");
-            "you are a chatbot, try to respond enthusiastically and positively in as few words as possible"
-        } else if *compound < -0.5 {
-            println!("Selected preset: negative");
-            "you are a chatbot, try to respond with a pessimistic or negative tone in as few words as possible"
+    let presets = [
+        (
+            1.0, // this is the sentiment score, this is tied to the message
+            "you are a chatbot, be very positive and try to respond in as few words as possible",
+        ),
+        (
+            0.0,
+            "you are a chatbot, be neutral and try to respond in as few words as possible",
+        ),
+        (
+            -1.0,
+            "you are a chatbot, be very negative and try to respond in as few words as possible",
+        ),
+    ];
+
+    let closest_index = presets.iter().enumerate().fold(0, |acc, (index, &(sentiment, _prompt))| {
+        let distance = (sentiment_score - sentiment).abs();
+        let closest_distance = (sentiment_score - presets[acc].0).abs();
+
+        if distance < closest_distance {
+            index
         } else {
-            println!("Selected preset: neutral");
-            "you are a chatbot, try to respond with a neutral tone in as few words as possible"
+            acc
         }
-    } else {
-        println!("Compound sentiment score not found, using neutral preset");
-        "you are a chatbot, try to respond in as few words as possible"
-    }
+    });
+
+    presets[closest_index].1
 }
+
 
 #[tokio::main]
 async fn main() {
