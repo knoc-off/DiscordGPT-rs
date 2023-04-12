@@ -1,19 +1,62 @@
-use chatgpt::prelude::*;
+// Time
 use chrono::{Duration, Utc};
+
+// Random numbers
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use serenity::model::prelude::ChannelId;
+use std::{collections::HashMap, sync::Arc};
+
+// Threading
+use tokio::{sync::mpsc, sync::Mutex};
+
+// Sentiment Analysis
+use vader_sentiment::SentimentIntensityAnalyzer;
+
+// ChatGPT API
+use chatgpt::prelude::*;
+
+// Discord API
 use serenity::{
     async_trait,
-    model::{channel::Message, gateway::Ready},
+    model::{channel::Message, gateway::Ready, prelude::ChannelId},
     prelude::*,
 };
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
-use tokio::sync::mpsc;
+const PRE_PROMPTS: &[(&[&str], &str)] = &[
+    (
+        &["translate", "emoji"],
+        "I want you to translate the sentences I wrote into emojis. I will write the sentence, and you will express it with emojis. I just want you to express it with emojis. I don't want you to reply with anything but emoji. When I need to tell you something in English, I will do it by wrapping it in curly brackets like {like this}. My first sentence is {}",
+    ),
+    (
+        &["respond", "emoji"],
+        "I want you to respond to the sentences I write with emojis. I will write the sentence, and you will reply to it with emojis. I just want you to reply to it with emojis. I don't want you to reply with anything but emoji. When I need to tell you something in English, I will do it by wrapping it in curly brackets like {like this}. My first sentence is {}",
+    ),
+    (
+        &["lunatic", "crazy", "nuts"],
+        "I want you to act as a lunatic. The lunatic's sentences are meaningless. The words used by lunatic are completely arbitrary. The lunatic does not make logical sentences in any way. My first suggestion request is \"I need help creating lunatic sentences for: {} \".",
+    ),
+    (
+        &["gaslight", "gas", "light"],
+        "I want you to act as a gaslighter. You will use subtle comments and body language to manipulate the thoughts, perceptions, and emotions of your target individual. My first request is that gaslighting me while chatting with you. My sentence: \"{}\"",
+    ),
+    (
+        &["fallacy"],
+        "I want you to act as a fallacy finder. You will be on the lookout for invalid arguments so you can call out any logical errors or inconsistencies that may be present in statements and discourse. Your job is to provide evidence-based feedback and point out any fallacies, faulty reasoning, false assumptions, or incorrect conclusions which may have been overlooked by the speaker or writer. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["influencer", "social media"],
+        "I want you to act as a social media influencer. You will create content for various platforms such as Instagram, Twitter or YouTube and engage with followers in order to increase brand awareness and promote products or services. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["history", "historian"],
+        "I want you to act as a historian. You will research and analyze cultural, economic, political, and social events in the past, collect data from primary sources and use it to develop theories about what happened during various periods of history. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["drunk"],
+        "I want you to act as a drunk person. You will only answer like a very drunk person texting and nothing else. Your level of drunkenness will be deliberately and randomly make a lot of grammar and spelling mistakes in your answers. You will also randomly ignore what I said and say something random with the same level of drunkeness I mentionned. Do not write explanations on replies. My first sentence is \"{}\"",
+    ),
 
-use vader_sentiment::SentimentIntensityAnalyzer;
+
+];
 
 struct QueuedMessage {
     channel_id: u64,
@@ -73,15 +116,12 @@ impl Handler {
         // Get the current time
         let now = Utc::now();
 
-        // Choose a preset from the static array of presets
-        // let preset = PRESETS.choose(&mut rand::thread_rng()).unwrap();
-
         // Attempt to find an existing conversation for the given channel_id
         // If it doesn't exist, create a new conversation with the chosen preset and store the current timestamp as the last message time
         let conversation_entry = conversations.entry(channel_id).or_insert_with(|| {
             let preset = get_preset_based_on_sentiment(input_str);
             println!(
-                "Generating a new conversation for channel {} with preset {}",
+                "Generating a new conversation for channel: {}, with preset: {}",
                 channel_id, preset
             );
             (
@@ -92,10 +132,10 @@ impl Handler {
 
         // Check if the conversation's last message time is older than 10 minutes
         // If it is, recreate the conversation with the chosen preset and update the last message time to the current time
-        if now.signed_duration_since(conversation_entry.1) > Duration::minutes(30) {
+        if now.signed_duration_since(conversation_entry.1) > Duration::minutes(5) {
             let preset = get_preset_based_on_sentiment(input_str);
             println!(
-                "Refreshing the conversation for channel {} with preset {}",
+                "Refreshing the conversation for channel: {}, with preset: {}",
                 channel_id, preset
             );
             *conversation_entry = (
@@ -184,24 +224,82 @@ impl EventHandler for Handler {
 }
 
 fn get_preset_based_on_sentiment(message: &str) -> String {
-    let analyzer = SentimentIntensityAnalyzer::new();
-    let sentiment = analyzer.polarity_scores(message);
+    let score = analyze_sentiment(&message);
+    // this is a hack but it should work...
+    // if (score.abs() - 0.0).abs() < 0.25 {
+        // code to run if score is close to 0
+//         return get_pre_prompt(message);
+//     }
 
-    let sentiment_score = sentiment.get("compound").unwrap_or(&0.0);
-    println!("Sentiment score: {}", sentiment_score);
+    return get_pre_prompt(message);
+  //   return get_sentiment_appropriate_response(score);
+}
 
+fn get_pre_prompt(message: &str) -> String {
+    let message_lowercase = message.to_lowercase();
+    let threshold = 0.1;
+
+    // Rank the pre-prompts based on the number of keyword matches
+    let ranked_pre_prompts: Vec<(Vec<&str>, &str, f32)> = PRE_PROMPTS
+        .iter()
+        .map(|(keywords, pre_prompt)| {
+            // Count how many keywords are present in the message
+            let match_count = keywords
+                .iter()
+                .filter(|&keyword| message_lowercase.contains(keyword))
+                .count();
+
+            // Calculate the match ratio based on the number of matched keywords
+            let match_ratio = match_count as f32 / keywords.len() as f32;
+
+            // Debug output: match count and match ratio
+            println!(
+                "Keywords: {:?}, Match count: {}, Match ratio: {}",
+                keywords, match_count, match_ratio
+            );
+
+            // Return a tuple containing the keywords, pre_prompt, and match_ratio
+            (keywords.to_vec(), *pre_prompt, match_ratio)
+        })
+        .collect();
+
+    // Find the best matching pre-prompt that exceeds the threshold
+    if let Some((_keywords, pre_prompt, match_ratio)) = ranked_pre_prompts
+        .iter()
+        .max_by(|(_, _, ratio1), (_, _, ratio2)| ratio1.partial_cmp(ratio2).unwrap())
+        .filter(|(_, _, ratio)| *ratio >= threshold)
+    {
+        // Replace "{}" in the pre_prompt with the message
+        let formatted_pre_prompt = pre_prompt.replace("{}", message);
+
+        // Debug output: selected pre_prompt and match ratio
+        println!(
+            "Selected pre_prompt: {}, Match ratio: {}",
+            pre_prompt, match_ratio
+        );
+
+        // Return the formatted pre_prompt with instructions
+        return format!(
+            "The expected format is as follows:\n<name>: <message>\nyou should only ever respond with <message>\n{}",
+            formatted_pre_prompt
+        );
+    }
+    return "pretend to be a person, dont mention that your a language model, make up answers when you dont know, be very neutral, apathetic and try to respond in as few words as possible".to_string();
+}
+
+fn get_sentiment_appropriate_response(sentiment_score: f64) -> String {
     let presets = [
         (
-            0.75, // this is the sentiment score, this is tied to the message
-            "you are a chatbot, be very positive, happy and try to respond in as few words as possible",
+            0.75,
+            "pretend to be a person, dont mention that your a language model, make up answers when you dont know, be very positive, happy and try to respond in as few words as possible",
         ),
         (
             0.0,
-            "you are a chatbot, be neutral, apethetic and try to respond in as few words as possible",
+            "pretend to be a person, dont mention that your a language model, make up answers when you dont know, be very neutral, apathetic and try to respond in as few words as possible",
         ),
         (
             -0.75,
-            "you are a chatbot, be very negative, angry and try to respond in as few words as possible",
+            "pretend to be a person, dont mention that your a language model, make up answers when you dont know, be very negative, angry and try to respond in as few words as possible",
         ),
     ];
 
@@ -224,8 +322,24 @@ fn get_preset_based_on_sentiment(message: &str) -> String {
         "The expected format is as follows:\n<name>: <message>\nyou should only ever respond with <message>\n{}",
         presets[closest_index].1
     );
-
     final_preset
+}
+
+fn analyze_sentiment(message: &str) -> f64 {
+    // Create a new SentimentIntensityAnalyzer
+    let analyzer = SentimentIntensityAnalyzer::new();
+
+    // Analyze the sentiment of the message
+    let sentiment = analyzer.polarity_scores(message);
+
+    // Extract the compound sentiment score
+    let sentiment_score = sentiment.get("compound").unwrap_or(&0.0);
+
+    // Debug output: sentiment score
+    println!("Sentiment score: {}", sentiment_score);
+
+    // Return the sentiment score as a float
+    *sentiment_score
 }
 
 #[tokio::main]

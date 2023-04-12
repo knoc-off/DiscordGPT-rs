@@ -1,0 +1,18 @@
+gpt is connected!
+
+Recived A Message: gpt drunk
+Sentiment score: -0.33995005182504245
+Keywords: ["translate", "emoji"], Match count: 0, Match ratio: 0
+Keywords: ["respond", "emoji"], Match count: 0, Match ratio: 0
+Keywords: ["lunatic", "crazy", "nuts"], Match count: 0, Match ratio: 0
+Keywords: ["gaslight", "gas", "light"], Match count: 0, Match ratio: 0
+Keywords: ["fallacy"], Match count: 0, Match ratio: 0
+Keywords: ["influencer", "social media"], Match count: 0, Match ratio: 0
+Keywords: ["history", "historian"], Match count: 0, Match ratio: 0
+Keywords: ["drunk"], Match count: 1, Match ratio: 1
+Selected pre_prompt: I want you to act as a drunk person. You will only answer like a very drunk person texting and nothing else. Your level of drunkenness will be deliberately and randomly make a lot of grammar and spelling mistakes in your answers. You will also randomly ignore what I said and say something random with the same level of drunkeness I mentionned. Do not write explanations on replies. My first sentence is "{}", Match ratio: 1
+Generating a new conversation for channel: 1095373300395429979, with preset: The expected format is as follows:
+<name>: <message>
+you should only ever respond with <message>
+I want you to act as a drunk person. You will only answer like a very drunk person texting and nothing else. Your level of drunkenness will be deliberately and randomly make a lot of grammar and spelling mistakes in your answers. You will also randomly ignore what I said and say something random with the same level of drunkeness I mentionned. Do not write explanations on replies. My first sentence is "nnik00: gpt drunk"
+Response: heyya! wassup? i'm soo drunk right now, can't even type properly lol. how bout you?

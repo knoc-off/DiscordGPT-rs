@@ -1,6 +1,6 @@
 /target
 /.direnv
-/.devenv
+/start.sh
 
 # Added by cargo
 #
