@@ -132,7 +132,7 @@ impl Handler {
 
         // Check if the conversation's last message time is older than 10 minutes
         // If it is, recreate the conversation with the chosen preset and update the last message time to the current time
-        if now.signed_duration_since(conversation_entry.1) > Duration::minutes(5) {
+        if now.signed_duration_since(conversation_entry.1) > Duration::minutes(5) || input_str.contains("!reset!") {
             let preset = get_preset_based_on_sentiment(input_str);
             println!(
                 "Refreshing the conversation for channel: {}, with preset: {}",
