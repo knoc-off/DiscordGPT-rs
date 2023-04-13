@@ -1,6 +1,7 @@
 /target
 /.direnv
 /start.sh
+/log.txt
 
 # Added by cargo
 #

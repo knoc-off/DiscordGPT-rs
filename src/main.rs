@@ -97,7 +97,9 @@ impl Handler {
                         &(queued_message.author_name + ": " + &queued_message.content),
                     )
                     .await
-                    .unwrap();
+                    .unwrap(); // This Errors when the token length is exceeded
+
+
                 println!("Response: {}", response);
 
                 let _ = ChannelId(queued_message.channel_id)
