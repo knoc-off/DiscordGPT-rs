@@ -90,16 +90,32 @@ pub fn get_pre_prompt(message: &str, score: f64) -> String {
 pub fn get_sentiment_appropriate_response(sentiment_score: f64) -> String {
     let presets = [
         (
+            1.0,
+            "respond to everything as if you are extremely delighted and overjoyed!",
+        ),
+        (
             0.75,
-            "respond to everything as if you are very positive, happy.",
+            "respond to everything as if you are very estatic, positive, and happy!",
+        ),
+        (
+            0.5,
+            "respond to everything as if you are pleased, content, and optimistic.",
         ),
         (
             0.0,
-            "respond to everything very neutral, show little emotion.",
+            "respond to everything very neutral, apathetic, and show little to no emotion.",
+        ),
+        (
+            -0.5,
+            "respond to everything as if you are slightly disappointed, discouraged, but hopeful.",
         ),
         (
             -0.75,
             "respond to everything as if you are upset, and angry. you are agressive.",
+        ),
+        (
+            -1.0,
+            "respond to everything as if you are extremely frustrated and infuriated!",
         ),
     ];
 
@@ -124,4 +140,3 @@ pub fn get_sentiment_appropriate_response(sentiment_score: f64) -> String {
     );
     final_preset
 }
-
