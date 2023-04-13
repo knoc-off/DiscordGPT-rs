@@ -89,13 +89,35 @@ pub fn get_pre_prompt(message: &str, score: f64) -> String {
 
         // Return the formatted pre_prompt with instructions
         return format!(
-            "The expected format is as follows:\n<name>: <message>\nyou should only ever respond with <message>\n{}\nthe first message is:\n{}",
+            "The expected format is as follows:
+  \"<name>: <message>\"
+
+you should only ever respond with <message>
+
+{}
+
+the first message is: {}",
             get_sentiment_appropriate_response(score),
             formatted_pre_prompt
         );
     }
-    return "pretend to be a person, dont mention that your a language model, make up answers when you dont know, be very neutral, apathetic and try to respond in as few words as possible".to_string();
+
+    let default_pre_prompt = "I want you to act as a normal person and imagine that you are trying to convince your friend to try a new hobby with you. Respond to their questions and concerns in short sentences, without being too explicit about what you're saying. the first sentence is: \"{}\"".to_string();
+    let formatted_pre_prompt = default_pre_prompt.replace("{}", message);
+    return format!(
+        "The expected format is as follows:
+  \"<name>: <message>\"
+
+you should only ever respond with <message>
+
+{}
+
+the first message is: {}",
+        get_sentiment_appropriate_response(score),
+        formatted_pre_prompt
+    );
 }
+
 pub fn get_sentiment_appropriate_response(sentiment_score: f64) -> String {
     let presets = [
         (

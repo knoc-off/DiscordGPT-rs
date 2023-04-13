@@ -133,18 +133,23 @@ impl Handler {
         // Check if the conversation's last message time is older than 10 minutes
         // If it is, recreate the conversation with the chosen preset and update the last message time to the current time
         if now.signed_duration_since(conversation_entry.1) > Duration::minutes(5) {
-            let preset = get_preset_based_on_sentiment(input_str);
-            println!(
-                "Refreshing the conversation for channel: {}, with preset: {}",
-                channel_id, preset
-            );
-            *conversation_entry = (
-                self.chat_gpt_client.new_conversation_directed(preset),
-                Utc::now(),
-            );
+            self.refresh_conversation(conversation_entry, &input_str);
         }
 
         conversation_entry
+    }
+
+    fn refresh_conversation(
+        &self,
+        conversation_entry: &mut (Conversation, chrono::DateTime<Utc>),
+        input_str: &String,
+    ) {
+        let preset = get_preset_based_on_sentiment(input_str);
+        println!("Refreshing the conversation with preset: {}", preset);
+        *conversation_entry = (
+            self.chat_gpt_client.new_conversation_directed(preset),
+            Utc::now(),
+        );
     }
 
     fn handle_reset(&self, conversation_entry: &mut (Conversation, chrono::DateTime<Utc>)) {
