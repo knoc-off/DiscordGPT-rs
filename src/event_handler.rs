@@ -1,15 +1,12 @@
 use chrono::Duration;
 use chrono::Utc;
-use rand::rngs::StdRng;
-use rand::Rng;
-use rand::SeedableRng;
 use serenity::async_trait;
 use serenity::client::Context;
 use serenity::client::EventHandler;
 use serenity::model::prelude::*;
 use std::sync::Arc;
 
-use crate::handler::{Handler, QueuedMessage};
+use crate::handler::QueuedMessage;
 
 // Implement EventHandler trait for the Handler struct
 #[async_trait]
@@ -33,9 +30,6 @@ impl EventHandler for crate::handler::Handler {
 
         println!("\nRecived A Message: {}", msg.content);
 
-        let mut rng = StdRng::from_entropy();
-        let random_chance = rng.gen_range(1..=20);
-
         let channel_id = msg.channel_id.0;
         let should_respond = {
             let conversations = self.conversations.lock().await;
@@ -44,12 +38,10 @@ impl EventHandler for crate::handler::Handler {
                     .to_lowercase()
                     .contains(&bot_user.name.to_lowercase())
                     || Utc::now().signed_duration_since(*last_message) <= Duration::seconds(30)
-                    || random_chance == 1
             } else {
                 msg.content
                     .to_lowercase()
                     .contains(&bot_user.name.to_lowercase())
-                    || random_chance == 1
             }
         };
 

@@ -7,7 +7,6 @@ mod preset_selection;
 
 use serenity::Client;
 // use handler::Handler;
-use event_handler::*;
 use crate::handler::Handler;
 
 

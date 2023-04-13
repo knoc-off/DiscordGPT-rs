@@ -9,8 +9,6 @@ use serenity::model::prelude::ChannelId;
 
 use crate::sentiment_analysis::get_preset_based_on_sentiment;
 
-use crate::preset_selection::{get_pre_prompt, get_sentiment_appropriate_response};
-
 pub struct QueuedMessage {
     pub channel_id: u64,
     pub author_name: String,

@@ -1,5 +1,3 @@
-
-
 const PRE_PROMPTS: &[(&[&str], &str)] = &[
     (
         &["translate", "emoji"],
@@ -37,7 +35,7 @@ const PRE_PROMPTS: &[(&[&str], &str)] = &[
 
 ];
 
-pub fn get_pre_prompt(message: &str) -> String {
+pub fn get_pre_prompt(message: &str, score: f64) -> String {
     let message_lowercase = message.to_lowercase();
     let threshold = 0.1;
 
@@ -82,7 +80,8 @@ pub fn get_pre_prompt(message: &str) -> String {
 
         // Return the formatted pre_prompt with instructions
         return format!(
-            "The expected format is as follows:\n<name>: <message>\nyou should only ever respond with <message>\n{}",
+            "The expected format is as follows:\n<name>: <message>\nyou should only ever respond with <message>\n{}\nthe first message is:\n{}",
+            get_sentiment_appropriate_response(score),
             formatted_pre_prompt
         );
     }
@@ -92,15 +91,15 @@ pub fn get_sentiment_appropriate_response(sentiment_score: f64) -> String {
     let presets = [
         (
             0.75,
-            "pretend to be a person, dont mention that your a language model, make up answers when you dont know, be very positive, happy and try to respond in as few words as possible",
+            "respond to everything as if you are very positive, happy.",
         ),
         (
             0.0,
-            "pretend to be a person, dont mention that your a language model, make up answers when you dont know, be very neutral, apathetic and try to respond in as few words as possible",
+            "respond to everything very neutral, show little emotion.",
         ),
         (
             -0.75,
-            "pretend to be a person, dont mention that your a language model, make up answers when you dont know, be very negative, angry and try to respond in as few words as possible",
+            "respond to everything as if you are upset, and angry. you are agressive.",
         ),
     ];
 
