@@ -46,45 +46,57 @@ impl Handler {
 
     pub async fn queue_handler(self: Arc<Self>, ctx: Context) {
         loop {
-            let queued_message = {
-                let mut receiver = self.receiver.lock().await;
-                receiver.recv().await
-            };
-
-            if let Some(queued_message) = queued_message {
-                let response_result = self
-                    .chatbot(
-                        queued_message.channel_id,
-                        &(queued_message.author_name + ": " + &queued_message.content),
-                    )
-                    .await;
+            if let Some(queued_message) = self.receive_message().await {
+                let response_result = self.chatbot_response(&queued_message).await;
 
                 match response_result {
                     Ok(response) => {
-                        println!("Response: {}", response);
-                        let _ = ChannelId(queued_message.channel_id)
-                            .send_message(&ctx.http, |m| {
-                                m.content(response);
-                                m.tts(true)
-                            })
-                            .await;
+                        self.send_response(ctx.http.clone(), &queued_message, response)
+                            .await
                     }
-                    Err(e) => {
-                        eprintln!("Error: {}", e);
-
-                        let mut conversations = self.conversations.lock().await;
-
-                        println!("Attempting to Reset");
-
-                        if let Some(conversation_entry) =
-                            conversations.get_mut(&queued_message.channel_id)
-                        {
-                            self.handle_reset(conversation_entry)
-                        }
-                    }
+                    Err(e) => self.handle_error(e, &queued_message).await,
                 }
             }
+
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        }
+    }
+
+    async fn receive_message(&self) -> Option<QueuedMessage> {
+        let mut receiver = self.receiver.lock().await;
+        receiver.recv().await
+    }
+
+    async fn chatbot_response(&self, queued_message: &QueuedMessage) -> Result<String> {
+        let message_text = queued_message.author_name.clone() + ": " + &queued_message.content;
+        self.chatbot(queued_message.channel_id, &message_text).await
+    }
+
+    async fn send_response(
+        &self,
+        http: Arc<serenity::http::Http>,
+        queued_message: &QueuedMessage,
+        response: String,
+    ) {
+        println!("Response: {}", response);
+
+        let _ = ChannelId(queued_message.channel_id)
+            .send_message(&http, |m| {
+                m.content(response);
+                m.tts(true)
+            })
+            .await;
+    }
+
+    async fn handle_error(&self, error: chatgpt::err::Error, queued_message: &QueuedMessage) {
+        eprintln!("Error: {}", error);
+
+        let mut conversations = self.conversations.lock().await;
+
+        println!("Attempting to Reset");
+
+        if let Some(conversation_entry) = conversations.get_mut(&queued_message.channel_id) {
+            self.handle_reset(conversation_entry, 10)
         }
     }
 
@@ -96,7 +108,7 @@ impl Handler {
             .get_or_create_conversation(&mut conversations, channel_id, input_str)
             .await;
 
-        self.handle_reset(conversation_entry);
+        self.handle_reset(conversation_entry, 10);
 
         // Send the user's message to the conversation and receive a response
         let response = conversation_entry.0.send_message(input_str).await?;
@@ -152,27 +164,36 @@ impl Handler {
         );
     }
 
-    fn handle_reset(&self, conversation_entry: &mut (Conversation, chrono::DateTime<Utc>)) {
+    fn handle_reset(
+        &self,
+        conversation_entry: &mut (Conversation, chrono::DateTime<Utc>),
+        memory: usize,
+    ) {
         // If the conversation history contains more than 20 messages, recreate the conversation with the last 10 messages and pre-prompt message
+
         if conversation_entry.0.history.len() > 20 {
+            // should consider splitting the pre_prompt into mutliple bits?
             let pre_prompt_message = conversation_entry.0.history.get(0).cloned().unwrap();
-            let mut last_10_messages = conversation_entry
+
+            let mut message_memory = conversation_entry
                 .0
                 .history
                 .iter()
                 .rev()
-                .take(10)
+                .take(memory)
                 .cloned()
                 .collect::<Vec<_>>();
-            last_10_messages.insert(0, pre_prompt_message);
+
+            // load the initial message, gives more consistent responses.
+            message_memory.insert(0, pre_prompt_message);
 
             println!("Recreating the conversation with the following messages:");
-            for message in &last_10_messages {
+            for message in &message_memory {
                 println!("{message:#?}")
             }
 
             *conversation_entry = (
-                Conversation::new_with_history(self.chat_gpt_client.clone(), last_10_messages),
+                Conversation::new_with_history(self.chat_gpt_client.clone(), message_memory),
                 Utc::now(),
             );
         }

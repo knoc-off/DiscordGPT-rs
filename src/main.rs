@@ -1,27 +1,26 @@
 use chatgpt::prelude::*;
 
-mod handler;
 mod event_handler;
-mod sentiment_analysis;
+mod handler;
 mod preset_selection;
+mod sentiment_analysis;
 
 use serenity::Client;
 // use handler::Handler;
-use crate::handler::Handler;
-
 
 #[tokio::main]
 async fn main() {
-    // Read the bot token from an environment variable
-    let token = std::env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
-    let chat_gpt_key =
-        std::env::var("OPENAI_API_KEY").expect("Expected a token in the environment");
-    let client = ChatGPT::new(chat_gpt_key).unwrap();
+    // Read the bot discord from an environment variable
+    let discord = std::env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+    let chatgpt = std::env::var("OPENAI_API_KEY").expect("Expected a discord in the environment");
 
-    let handler = Handler::new_chatbot(client).await;
+    // Instantiating a new ChatGPT client using the provided chatgpt model
+    // Creating a new Handler object that uses the ChatGPT client
+    let client = ChatGPT::new(chatgpt).unwrap();
+    let handler = handler::Handler::new_chatbot(client).await;
 
-    // Create a client using the bot token and the Handler struct
-    let mut client = Client::builder(token)
+    // Create a client using the bot discord and the Handler struct
+    let mut client = Client::builder(discord)
         .event_handler(handler)
         .await
         .expect("Error creating client");

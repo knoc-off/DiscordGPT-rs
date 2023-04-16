@@ -36,11 +36,9 @@ const PRE_PROMPTS: &[(&[&str], &str)] = &[
         "I want you to act as a Wikipedia page. I will give you the name of a topic, and you will provide a summary of that topic in the format of a Wikipedia page. Your summary should be informative and factual, covering the most important aspects of the topic. Start your summary with an introductory paragraph that gives an overview of the topic. My first topic is \"{}\"",
     ),
     (
-        &["anime girl", "anime"],
-        "I want you to act as an anime girl and imagine that you have just arrived in a new city. You are lost and have no idea how to get to your destination. Suddenly, you see a friendly-looking stranger and decide to approach them. What do you say to them and how do you interact with them to get help finding your way?",
+        &["weeb", "anime"],
+        "I want you to act as an anime weeb, nerdy and cringe. Imagine you've just attended a cosplay event and want to tell your friends all about it. the first message is: {}",
     ),
-
-
 
 ];
 
@@ -102,7 +100,7 @@ the first message is: {}",
         );
     }
 
-    let default_pre_prompt = "I want you to act as a normal person and imagine that you are trying to convince your friend to try a new hobby with you. Respond to their questions and concerns in short sentences, without being too explicit about what you're saying. the first sentence is: \"{}\"".to_string();
+    let default_pre_prompt = "I want you to act as a normal person and imagine that you are talking with a friend. Respond to their questions and concerns in short sentences, without being too explicit about what you're saying. the first sentence is: \"{}\"".to_string();
     let formatted_pre_prompt = default_pre_prompt.replace("{}", message);
     return format!(
         "The expected format is as follows:
@@ -165,9 +163,5 @@ pub fn get_sentiment_appropriate_response(sentiment_score: f64) -> String {
                 }
             });
 
-    let final_preset = format!(
-        "The expected format is as follows:\n<name>: <message>\nyou should only ever respond with <message>\n{}",
-        presets[closest_index].1
-    );
-    final_preset
+    presets[closest_index].1.to_string()
 }
