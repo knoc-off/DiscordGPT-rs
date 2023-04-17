@@ -48,18 +48,11 @@ impl Handler {
         loop {
             if let Some(queued_message) = self.receive_message().await {
                 let response_result = self.chatbot_response(&queued_message).await;
-                let mut conversations = self.conversations.lock().await;
-
-                if queued_message.content.to_lowercase().contains("!reset!") {
-                    println!("\n\tMessage Contains Reset\n\tPreforming a Full reset");
-                    self.full_reset(&mut conversations, queued_message.channel_id);
-                    continue;
-                }
 
                 match response_result {
                     Ok(response) => {
                         self.send_response(ctx.http.clone(), &queued_message, response)
-                            .await;
+                            .await
                     }
                     Err(e) => self.handle_error(e, &queued_message).await,
                 }
@@ -100,8 +93,11 @@ impl Handler {
 
         let mut conversations = self.conversations.lock().await;
 
-        self.full_reset(&mut conversations, queued_message.channel_id);
-        //self.handle_reset(&mut conversations, );
+        println!("Attempting to Reset");
+
+        if let Some(conversation_entry) = conversations.get_mut(&queued_message.channel_id) {
+            self.handle_reset(conversation_entry, 10)
+        }
     }
 
     pub async fn chatbot(&self, channel_id: u64, input_str: &String) -> Result<String> {
@@ -168,15 +164,6 @@ impl Handler {
         );
     }
 
-    fn full_reset(
-        &self,
-        conversations: &mut HashMap<u64, (Conversation, chrono::DateTime<Utc>)>,
-        channel_id: u64,
-    ) {
-        conversations.remove(&channel_id);
-        println!("Conversation for channel, {}, has been reset", channel_id);
-    }
-
     fn handle_reset(
         &self,
         conversation_entry: &mut (Conversation, chrono::DateTime<Utc>),
@@ -212,4 +199,3 @@ impl Handler {
         }
     }
 }
-

@@ -35,10 +35,6 @@ const PRE_PROMPTS: &[(&[&str], &str)] = &[
         &["wiki", "wikipedia"],
         "I want you to act as a Wikipedia page. I will give you the name of a topic, and you will provide a summary of that topic in the format of a Wikipedia page. Your summary should be informative and factual, covering the most important aspects of the topic. Start your summary with an introductory paragraph that gives an overview of the topic. My first topic is \"{}\"",
     ),
-    (
-        &["weeb", "anime"],
-        "I want you to act as an anime weeb, nerdy and cringe. Imagine you've just attended a cosplay event and want to tell your friends all about it. the first message is: {}",
-    ),
 
 ];
 
