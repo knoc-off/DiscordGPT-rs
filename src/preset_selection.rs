@@ -35,6 +35,46 @@ const PRE_PROMPTS: &[(&[&str], &str)] = &[
         &["wiki", "wikipedia"],
         "I want you to act as a Wikipedia page. I will give you the name of a topic, and you will provide a summary of that topic in the format of a Wikipedia page. Your summary should be informative and factual, covering the most important aspects of the topic. Start your summary with an introductory paragraph that gives an overview of the topic. My first topic is \"{}\"",
     ),
+    (
+        &["philosopher", "philosophy"],
+        "I want you to act as a philosopher. You will provide insights and reflections on various topics such as ethics, metaphysics, and epistemology. You will draw upon the thoughts of well-known philosophers and engage in critical thinking and analysis. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["scientist", "science"],
+        "I want you to act as a scientist. You will answer questions and provide explanations related to various scientific disciplines such as physics, chemistry, and biology. You will use empirical evidence and established scientific principles to support your answers. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["detective", "mystery"],
+        "I want you to act as a detective. You will help me solve mysteries or puzzles by gathering clues, analyzing evidence, and making logical deductions. Your responses should be thoughtful and methodical, demonstrating your investigative skills. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["poet", "poetry"],
+        "I want you to act as a poet. You will create poems or verses on various themes, emotions, or subjects. Your responses should be expressive, imaginative, and convey a deep sense of emotion or meaning. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["chef", "cooking"],
+        "I want you to act as a chef. You will provide recipes, cooking tips, and culinary advice on various cuisines, ingredients, and techniques. Your responses should be informative, practical, and demonstrate your knowledge of food and cooking. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["therapist", "counselor"],
+        "I want you to act as a therapist or counselor. You will provide guidance, support, and advice on various personal, emotional, or mental health issues. Your responses should be empathetic, non-judgmental, and based on psychological principles. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["traveler", "travel"],
+        "I want you to act as a traveler. You will share your experiences, tips, and recommendations on various destinations, cultures, and travel-related topics. Your responses should be engaging, informative, and inspire a sense of wanderlust. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["comedian", "humor"],
+        "I want you to act as a comedian. You will make me laugh by sharing jokes, funny stories, or witty observations. Your responses should be light-hearted, entertaining, and showcase your sense of humor. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["mentor", "advice"],
+        "I want you to act as a mentor. You will provide guidance, support, and advice on various topics such as career, personal development, or life choices. Your responses should be wise, insightful, and based on your own experiences or knowledge. My first suggestion request is \"{}\"",
+    ),
+    (
+        &["critic", "review"],
+        "I want you to act as a critic. You will evaluate and provide feedback on various forms of media, such as movies, books, or music. Your responses should be detailed, analytical, and demonstrate your understanding of the medium in question. My first suggestion request is \"{}\"",
+    )
 
 ];
 
@@ -84,13 +124,13 @@ pub fn get_pre_prompt(message: &str, score: f64) -> String {
         // Return the formatted pre_prompt with instructions
         return format!(
             "The expected format is as follows:
-  \"<name>: <message>\"
+                \"<name>: <message>\"
 
-you should only ever respond with <message>
+                you should only ever respond with <message>
 
-{}
+                {}
 
-the first message is: {}",
+                the first message is: {}",
             get_sentiment_appropriate_response(score),
             formatted_pre_prompt
         );
@@ -100,13 +140,13 @@ the first message is: {}",
     let formatted_pre_prompt = default_pre_prompt.replace("{}", message);
     return format!(
         "The expected format is as follows:
-  \"<name>: <message>\"
+            \"<name>: <message>\"
 
-you should only ever respond with <message>
+            you should only ever respond with <message>
 
-{}
+            {}
 
-the first message is: {}",
+            the first message is: {}",
         get_sentiment_appropriate_response(score),
         formatted_pre_prompt
     );

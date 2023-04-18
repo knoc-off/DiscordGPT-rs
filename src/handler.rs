@@ -51,7 +51,7 @@ impl Handler {
                 let mut conversations = self.conversations.lock().await;
 
                 if queued_message.content.to_lowercase().contains("!reset!") {
-                    println!("\n\tMessage Contains Reset\n\tPreforming a Full reset");
+                    println!("\tMessage Contains Reset\n\tPreforming a Full reset");
                     self.full_reset(&mut conversations, queued_message.channel_id);
                     continue;
                 }
