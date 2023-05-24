@@ -77,6 +77,7 @@ impl Handler {
     async fn chatbot_response(&self, queued_message: &QueuedMessage) -> Result<String> {
         let message_text = queued_message.author_name.clone() + ": " + &queued_message.content;
         self.chatbot(queued_message.channel_id, &message_text).await
+        // it might be here where it crashes
     }
 
     async fn send_response(
@@ -115,13 +116,18 @@ impl Handler {
         self.handle_reset(conversation_entry, 10);
 
         // Send the user's message to the conversation and receive a response
-        let response = conversation_entry.0.send_message(input_str).await?;
+        let response = conversation_entry.0.send_message(input_str).await;
 
-        // Update the conversation's last message time to the current time
-        conversation_entry.1 = Utc::now();
+        if response.is_ok() {
+            // Update the conversation's last message time to the current time
+            conversation_entry.1 = Utc::now();
 
-        // Return the response content as a String
-        Ok(response.message().content.to_string())
+            // Return the response content as a String
+            Ok(response?.message().content.to_string())
+        }
+        else {
+            Ok("Error".to_string())
+        }
     }
 
     async fn get_or_create_conversation<'a>(
@@ -186,7 +192,12 @@ impl Handler {
 
         if conversation_entry.0.history.len() > 20 {
             // should consider splitting the pre_prompt into mutliple bits?
-            let pre_prompt_message = conversation_entry.0.history.get(0).cloned().unwrap();
+            let pre_prompt_message = conversation_entry
+                .0
+                .history
+                .get(0)
+                .cloned()
+                .expect("Failed to get history handler.rs");
 
             let mut message_memory = conversation_entry
                 .0
@@ -212,4 +223,3 @@ impl Handler {
         }
     }
 }
-

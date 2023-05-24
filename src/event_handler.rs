@@ -22,7 +22,7 @@ impl EventHandler for crate::handler::Handler {
 
     // This function will be called when a message is received
     async fn message(&self, ctx: Context, msg: Message) {
-        let bot_user = ctx.http.get_current_user().await.unwrap();
+        let bot_user = ctx.http.get_current_user().await.expect(" failed to get user event_handler.rs");
 
         if msg.author.id == bot_user.id {
             return;

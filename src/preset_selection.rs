@@ -201,3 +201,7 @@ pub fn get_sentiment_appropriate_response(sentiment_score: f64) -> String {
 
     presets[closest_index].1.to_string()
 }
+
+
+
+
