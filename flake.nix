@@ -12,7 +12,7 @@
 
   outputs = { self, fenixrs, nixpkgs, devenv, ... }@inputs:
     let
-      appName = "discord-gpt";
+      appName = "discord_gpt";
       version = "0.1.0";
 
       system = "x86_64-linux";
@@ -59,26 +59,30 @@
         ];
       };
 
-      packages.${system}.app = (pkgs.makeRustPlatform {
-        cargo = fenix.minimal.cargo;
-        rustc = fenix.minimal.rustc;
-      }).buildRustPackage {
-        pname = appName;
-        version = version; # replace this with your actual version number
+      packages.${system}.app =
+        let
+          originalApp = (pkgs.makeRustPlatform {
+            cargo = fenix.minimal.cargo;
+            rustc = fenix.minimal.rustc;
+          }).buildRustPackage {
+            pname = appName;
+            version = version;
+            cargoLock.lockFile = ./Cargo.lock;
+            src = ./.;
 
-        src = ./.; # replace this with the path to your source code
+            nativeBuildInputs = packages;
+            buildInputs = with pkgs; [
+              openssl
+            ];
+          };
+        in
+        pkgs.runCommandNoCC "${originalApp.pname}-wrapped"
+          {
+            buildInputs = with pkgs; [ makeWrapper ];
+          } ''
 
-        cargoLock.lockFile = ./Cargo.lock; # replace this with the path to your Cargo.lock file
-
-        nativeBuildInputs = packages;
-
-        #OPENSSL_DIR = "${pkgs.openssl.dev}";
-
-
-        buildInputs = with pkgs; [
-          openssl
-        ];
-
-      };
+          makeWrapper ${originalApp}/bin/${appName} $out/bin/${appName} \
+            --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath [ pkgs.openssl ]}
+        '';
     };
 }
